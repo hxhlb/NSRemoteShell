@@ -1,0 +1,60 @@
+name: Tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    name: Compile (${{ matrix.platform.name }})
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: macOS
+            destination: "platform=macOS"
+          - name: iOS
+            destination: "platform=iOS Simulator,name=iPhone 16,OS=latest"
+          - name: tvOS
+            destination: "platform=tvOS Simulator,name=Apple TV,OS=latest"
+          - name: watchOS
+            destination: "platform=watchOS Simulator,name=Apple Watch Series 10 (46mm),OS=latest"
+          - name: Mac Catalyst
+            destination: "platform=macOS,variant=Mac Catalyst"
+          - name: visionOS
+            destination: "platform=visionOS Simulator,name=Apple Vision Pro,OS=latest"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app
+
+      - name: Build
+        run: |
+          xcodebuild build \
+            -scheme NSRemoteShell \
+            -destination '${{ matrix.platform.destination }}' \
+            -skipPackagePluginValidation
+
+  test:
+    name: Test
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app
+
+      - name: Start sshd and run tests
+        run: Scripts/test.sh
